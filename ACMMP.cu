@@ -358,7 +358,6 @@ __device__ float ComputeBilateralNCC(const cudaTextureObject_t ref_image, const 
         return cost_max;
     }
 
-    float cost = 0.0f;
     {
         float sum_ref = 0.0f;
         float sum_ref_ref = 0.0f;
@@ -411,11 +410,11 @@ __device__ float ComputeBilateralNCC(const cudaTextureObject_t ref_image, const 
 
         const float kMinVar = 1e-5f;
         if (var_ref < kMinVar || var_src < kMinVar) {
-            return cost = cost_max;
+            return cost_max;
         } else {
             const float covar_src_ref = sum_ref_src - sum_ref * sum_src;
             const float var_ref_src = sqrt(var_ref * var_src);
-            return cost = max(0.0f, min(cost_max, 1.0f - covar_src_ref / var_ref_src));
+            return max(0.0f, min(cost_max, 1.0f - covar_src_ref / var_ref_src));
         }
     }
 }
@@ -605,7 +604,7 @@ __global__ void RandomInitialization(cudaTextureObjects *texture_objects, Camera
                     r_x = (r_x > 0 ? (r_x < params.scaled_cols? r_x : params.scaled_cols - 1) : 0);
                     const int s_center = r_y*params.scaled_cols+r_x;
                     if (s_center >=  params.scaled_rows * params.scaled_cols) {
-                        printf("Illegal: %d, %d, %f, %f (%d, %d)\n", r_x, r_y, o_x, o_y, params.scaled_cols,  params.scaled_rows);
+                        printf("Illegal: %d, %d, %f, %f (%f, %f)\n", r_x, r_y, o_x, o_y, params.scaled_cols,  params.scaled_rows);
                     }
                     srcPix = scaled_plane_hypotheses[s_center].w;
                     srcNorm = scaled_plane_hypotheses[s_center];

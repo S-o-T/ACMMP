@@ -352,7 +352,6 @@ void RunFusion(std::string &dense_folder, const std::vector<Problem> &problems, 
                             used_list[j].y = src_r;
 
                             float tmp_index = reproj_error + 200 * relative_depth_diff + angle * 10;
-                            float cons = exp(-tmp_index);
                             dynamic_consistency += exp(-tmp_index);
                             num_consistent++;
                         }

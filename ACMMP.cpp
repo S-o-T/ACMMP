@@ -39,16 +39,16 @@ void StringAppendV(std::string* dst, const char* format, va_list ap) {
   // Increase the buffer size to the size requested by vsnprintf,
   // plus one for the closing \0.
   const int variable_buffer_size = result + 1;
-  std::unique_ptr<char> variable_buffer(new char[variable_buffer_size]);
+  std::vector<char> variable_buffer(variable_buffer_size);
 
   // Restore the va_list before we use it again.
   va_copy(backup_ap, ap);
   result =
-      vsnprintf(variable_buffer.get(), variable_buffer_size, format, backup_ap);
+      vsnprintf(variable_buffer.data(), variable_buffer_size, format, backup_ap);
   va_end(backup_ap);
 
   if (result >= 0 && result < variable_buffer_size) {
-    dst->append(variable_buffer.get(), result);
+    dst->append(variable_buffer.data(), result);
   }
 }
 
@@ -277,11 +277,8 @@ int readDepthDmb(const std::string file_path, cv::Mat_<float> &depth)
 
     int32_t dataSize = h*w*nb;
 
-    float* data;
-    data = (float*) malloc (sizeof(float)*dataSize);
-    fread(data,sizeof(float),dataSize,inimage);
-
-    depth = cv::Mat(h,w,CV_32F,data);
+    depth = cv::Mat::zeros(h, w, CV_32F);
+    fread(depth.data, sizeof(float), dataSize, inimage);
 
     fclose(inimage);
     return 0;
@@ -339,11 +336,8 @@ int readNormalDmb (const std::string file_path, cv::Mat_<cv::Vec3f> &normal)
 
     int32_t dataSize = h*w*nb;
 
-    float* data;
-    data = (float*) malloc (sizeof(float)*dataSize);
-    fread(data,sizeof(float),dataSize,inimage);
-
-    normal = cv::Mat(h,w,CV_32FC3,data);
+    normal = cv::Mat::zeros(h, w, CV_32FC3);
+    fread(normal.data, sizeof(float), dataSize, inimage);
 
     fclose(inimage);
     return 0;
@@ -386,7 +380,7 @@ void StoreColorPlyFileBinaryPointCloud (const std::string &plyFilePath, const st
     /*write header*/
     fprintf(outputPly, "ply\n");
     fprintf(outputPly, "format binary_little_endian 1.0\n");
-    fprintf(outputPly, "element vertex %d\n",pc.size());
+    fprintf(outputPly, "element vertex %ld\n",pc.size());
     fprintf(outputPly, "property float x\n");
     fprintf(outputPly, "property float y\n");
     fprintf(outputPly, "property float z\n");
@@ -399,9 +393,8 @@ void StoreColorPlyFileBinaryPointCloud (const std::string &plyFilePath, const st
     fprintf(outputPly, "end_header\n");
 
     //write data
-#pragma omp parallel for
-    for(size_t i = 0; i < pc.size(); i++) {
-        const PointList &p = pc[i];
+#pragma omp parallel for default(none) shared(pc, outputPly)
+    for (const auto &p: pc) {
         float3 X = p.coord;
         const float3 normal = p.normal;
         const float3 color = p.color;
@@ -429,16 +422,6 @@ void StoreColorPlyFileBinaryPointCloud (const std::string &plyFilePath, const st
 
     }
     fclose(outputPly);
-}
-
-static float GetDisparity(const Camera &camera, const int2 &p, const float &depth)
-{
-    float point3D[3];
-    point3D[0] = depth * (p.x - camera.K[2]) / camera.K[0];
-    point3D[1] = depth * (p.y - camera.K[5]) / camera.K[4];
-    point3D[3] = depth;
-
-    return std::sqrt(point3D[0] * point3D[0] + point3D[1] * point3D[1] + point3D[2] * point3D[2]);
 }
 
 void ACMMP::SetGeomConsistencyParams(bool multi_geometry=false)
@@ -833,7 +816,7 @@ std::vector<Triangle> ACMMP::DelaunayTriangulation(const cv::Rect boundRC, const
     }
     subdiv2d.getTriangleList(temp_results);
 
-    for (const auto temp_vec : temp_results) {
+    for (const auto &temp_vec : temp_results) {
         cv::Point pt1((int)temp_vec[0], (int)temp_vec[1]);
         cv::Point pt2((int)temp_vec[2], (int)temp_vec[3]);
         cv::Point pt3((int)temp_vec[4], (int)temp_vec[5]);
